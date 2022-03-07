@@ -88,9 +88,14 @@ export default {
         },
       ];
 
+      const csrfToken = this.$cookies.get("csrftoken");
+
       fetch("/billing/api/invoices/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
         body: JSON.stringify(data),
       })
         .then((response) => {
