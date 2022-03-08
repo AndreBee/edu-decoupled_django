@@ -1,5 +1,26 @@
 {
   "dependencies": {
     "vue-cookies": "^1.7.4"
-  }
+  },
+  "name": "decoupled_dj",
+  "version": "1.0.0",
+  "main": "index.js",
+  "devDependencies": {
+    "cypress": "^9.5.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AndreBee/EDU-Decoupled_dj.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AndreBee/EDU-Decoupled_dj/issues"
+  },
+  "homepage": "https://github.com/AndreBee/EDU-Decoupled_dj#readme",
+  "description": ""
 }

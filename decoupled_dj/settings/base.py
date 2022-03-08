@@ -128,6 +128,6 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         # default permission for all endpoints applied globally
-        #"rest_framework.permissions.IsAdminUser"
+        "rest_framework.permissions.IsAdminUser"
     ]
 }
