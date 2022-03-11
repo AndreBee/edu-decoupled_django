@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'billing',
     'rest_framework',
     'corsheaders',
+    'ariadne_django',
 ]
 
 MIDDLEWARE = [
