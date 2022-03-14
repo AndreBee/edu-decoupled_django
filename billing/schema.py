@@ -1,41 +1,107 @@
-from ariadne import load_schema_from_path, gql, make_executable_schema
-from ariadne import ObjectType, MutationType
-from ariadne.utils import convert_kwargs_to_snake_case
-from pathlib import Path
-from user.models import User
-from billing.models import Invoice, ItemLine
+from xml.dom.minidom import Identified
+import strawberry
+import datetime
+import decimal
+import dataclasses
 
-BASE_DIR = Path(__file__).resolve().parent
+from typing import List
+from enum import Enum
 
-schema_file = load_schema_from_path(BASE_DIR / "schema.graphql")
-type_defs = gql(schema_file)
+from user.models import User as UserModel
+from billing.models import Invoice as InvoiceModel
+from billing.models import ItemLine as ItemLineModel
 
-query = ObjectType("Query")
+from asgiref.sync import sync_to_async
 
-# adding a resolver, a callable in charge
-# of querying a DB. It is the bridge between
-# the public API and the DB.
-@query.field("getClients")
-def resolve_clients(obj, info):
-    return User.objects.all()
+def _get_all_clients():
+    return list(UserModel.objects.all())
 
-@query.field("getClient")
-def resolve_client(obj, info, id):
-    return User.objects.get(id=id)
+async def resolve_clients():
+    return await sync_to_async(_get_all_clients)()
 
-mutation = MutationType()
+def _get_client(id):
+    return UserModel.objects.get(id=id)
 
-@mutation.field("invoiceCreate")
-@convert_kwargs_to_snake_case
-def resolve_invoice_create(obj, info, invoice):
-    user_id = invoice.pop('user')
-    items = invoice.pop('items')
+async def resolve_client(id: strawberry.ID):
+    return await sync_to_async(_get_client)(id)
 
-    invoice = Invoice.objects.create(user_id=user_id, **invoice)
 
-    for item in items:
-        ItemLine.objects.create(invoice=invoice, **item)
+@strawberry.enum
+class InvoiceState(Enum):
+    PAID = "PAID"
+    UNPAID = "UNPAID"
+    CANCELLED = "CANCELLED"
+
+
+@strawberry.type
+class User:
+    id: strawberry.ID
+    name: str
+    email: str
+
+
+@strawberry.type
+class Invoice:
+    user: User
+    date: datetime.date
+    due_date: datetime.date
+    state: InvoiceState
+    items: List["ItemLine"]
+
+
+@strawberry.type
+class ItemLine:
+    quantity: int
+    description: str
+    price: decimal.Decimal
+    taxed: bool
+
+
+@strawberry.type
+class Query:
+    get_clients: List[User] = strawberry.field(resolver=resolve_clients)
+    get_client: User = strawberry.field(resolver=resolve_client)
+
+
+@strawberry.input
+class ItemLineInput:
+    quantity: int
+    description: str
+    price: decimal.Decimal
+    taxed: bool
+
+
+@strawberry.input
+class InvoiceInput:
+    user: strawberry.ID
+    date: datetime.date
+    due_date: datetime.date
+    state: InvoiceState
+    items: List[ItemLineInput]
+
+
+def _create_invoice(user_id, state, invoice):
+    return InvoiceModel.objects.create(user_id=user_id, state=state.value, **invoice)
     
-    return invoice
+def _create_itemlines(invoice, item):
+    ItemLineModel.objects.create(invoice=invoice, **item)
 
-schema = make_executable_schema(type_defs, query, mutation)
+
+@strawberry.type
+class Mutation:
+    @strawberry.mutation
+    async def create_invoice(self, invoice: InvoiceInput) -> Invoice:
+        _invoice = dataclasses.asdict(invoice)
+        user_id = _invoice.pop("user")
+        items = _invoice.pop("items")
+        state = _invoice.pop("state")
+
+        new_invoice = await sync_to_async(_create_invoice)(user_id, state, _invoice)
+
+        for item in items:
+            await sync_to_async(_create_itemlines)(new_invoice, item)
+        
+        return new_invoice
+
+schema = strawberry.Schema(query=Query, mutation=Mutation)
+

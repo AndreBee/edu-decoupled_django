@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'ariadne_django',
+    'strawberry.django',
 ]
 
 MIDDLEWARE = [
